@@ -1,0 +1,16 @@
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# Build outputs
+[Bb]uild/
+[Bb]in/
+[Oo]bj/
+
+# Version control
+.jj/
+.git/
+
+# Documentation
+[Dd]ocs/
+[Dd]ocuments/
