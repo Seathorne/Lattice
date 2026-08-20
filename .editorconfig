@@ -1,0 +1,9 @@
+# Suppress IDE0130 warning: "namespace should match folder structure" in specific subfolders.
+[Elements/Attributes/*.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
+[Elements/Events/*.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
+[Elements/Interfaces/*.cs]
+dotnet_diagnostic.IDE0130.severity = none
