@@ -1,0 +1,56 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+
+namespace Lattice.Elements;
+
+public abstract class Element
+{
+    private readonly List<Element> _children = [];
+    
+    private protected Element() { }
+
+    public Guid Id { get; } = Guid.NewGuid();
+
+    public Element? Parent { get; private set; }
+
+    public IReadOnlyList<Element> Children => _children;
+
+    public void AddChild(Element child)
+    {
+        if (_children.Contains(child))
+        {
+            Trace.TraceWarning($"Element {this} already contains child {child}; nothing added.");
+            return;
+        }
+        
+        if (child.Parent is Element parent && parent.Children.Contains(child))
+        {
+            Trace.TraceWarning($"Removing child {child} from former parent {parent}.");
+            parent.RemoveChild(child);
+        }
+
+        child.Parent = this;
+        _children.Add(child);
+        RaiseChanged(new ChildAddedEventArgs(child));
+    }
+
+    public void RemoveChild(Element child)
+    {
+        if (_children.Remove(child) == false)
+        {
+            Trace.TraceWarning($"Element {this} does not contain child {child}; nothing removed.");
+            return;
+        }
+
+        child.Parent = null;
+        RaiseChanged(new ChildRemovedEventArgs(child));
+    }
+
+    public override string ToString() => $"{GetType().Name}({Id})";
+
+    protected void RaiseChanged(ElementChangedEventArgs e) => Changed?.Invoke(this, e);
+
+    public event EventHandler<ElementChangedEventArgs>? Changed;
+}
