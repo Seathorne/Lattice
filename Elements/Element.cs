@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Lattice.Drawing;
+using Lattice.Geometry;
 
 namespace Lattice.Elements;
 
@@ -47,6 +49,8 @@ public abstract class Element
         child.Parent = null;
         RaiseChanged(new ChildRemovedEventArgs(child));
     }
+
+    public abstract IReadOnlyList<BaseCommand> Render(bool isFocused, DrawSurface drawSurface);
 
     public override string ToString() => $"{GetType().Name}({Id})";
 
