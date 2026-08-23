@@ -3,8 +3,8 @@ using System;
 namespace Lattice.Elements;
 
 [AttributeUsage(validOn: AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
-public sealed class FillHeightAttribute(int? min = null, int? max = null) : HeightAttribute
+public sealed class FillHeightAttribute(int? minimum = null, int? maximum = null) : HeightAttribute
 {
-    public int? Min { get; } = min;
-    public int? Max { get; } = max;
+    public int? Minimum { get; } = minimum;
+    public int? Maximum { get; } = maximum;
 }
