@@ -1,4 +1,4 @@
-namespace Lattice.Geometry;
+namespace Lattice.Drawing;
 
 public readonly struct Rectangle(int x, int y, int width, int height)
 {

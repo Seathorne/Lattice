@@ -1,8 +1,8 @@
 # Suppress IDE0130 warning: "namespace should match folder structure" in specific subfolders.
-[Drawing/Commands/*.cs]
+[Drawing/Borders/*.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
-[Drawing/Geometry/*.cs]
+[Drawing/Commands/*.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
 [Elements/Attributes/*.cs]

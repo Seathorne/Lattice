@@ -26,14 +26,14 @@ public static class BorderGlyphs
 
     public static readonly BorderGlyphSet Wide = new('\u2588', '\u2588', '\u2588', '\u2588', '\u3161', '\uFF5C');
 
-    public static readonly BorderGlyphSet Ascii = new('+', '+', '+', '+', '-', '|');
+    public static readonly BorderGlyphSet Simple = new('+', '+', '+', '+', '-', '|');
 
     public static BorderGlyphSet GetBorderGlyphs(Border border, HostType hostType)
     {
-        if (border.IsAsciiOnly || hostType == HostType.Conhost)
-            return Ascii;
+        if (border.Mode == BorderMode.Simple || hostType == HostType.Conhost)
+            return Simple;
         
-        if (border.Scale == BorderScale.Wide)
+        if (border.Mode == BorderMode.Wide)
             return Wide;
 
         if (border.Weight == BorderWeight.Double)

@@ -1,5 +1,3 @@
-using Lattice.Geometry;
-
 namespace Lattice.Drawing;
 
 // A single drawing instruction produced by an element and executed by the

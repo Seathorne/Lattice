@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Lattice.Drawing;
-using Lattice.Geometry;
 
 namespace Lattice.Elements;
 

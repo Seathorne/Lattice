@@ -22,28 +22,25 @@ public readonly struct Border : IEquatable<Border>
 
     public static Border Double { get; } = Unicode(BorderWeight.Double, BorderStyle.Solid);
 
-    public static Border Wide { get; } = new(BorderWeight.Light, BorderStyle.Solid, BorderScale.Wide, false);
+    public static Border Wide { get; } = new(BorderWeight.Light, BorderStyle.Solid, BorderMode.Wide);
 
-    public static Border Ascii { get; } = new(BorderWeight.Light, BorderStyle.Solid, BorderScale.Narrow, true);
+    public static Border Simple { get; } = new(BorderWeight.Light, BorderStyle.Solid, BorderMode.Simple);
 
-    private Border(BorderWeight weight, BorderStyle style, BorderScale scale, bool isAsciiOnly)
+    private Border(BorderWeight weight, BorderStyle style, BorderMode mode)
     {
         Weight = weight;
         Style = style;
-        Scale = scale;
-        IsAsciiOnly = isAsciiOnly;
+        Mode = mode;
     }
 
     public BorderWeight Weight { get; }
 
     public BorderStyle Style { get; }
 
-    public BorderScale Scale { get; }
-
-    public bool IsAsciiOnly { get; }
+    public BorderMode Mode { get; }
 
     public static Border Unicode(BorderWeight weight, BorderStyle style)
-        => new(weight, style, BorderScale.Narrow, false);
+        => new(weight, style, BorderMode.Narrow);
 
     public static bool operator ==(Border left, Border right)
         => left.Equals(right);
@@ -54,17 +51,16 @@ public readonly struct Border : IEquatable<Border>
     public bool Equals(Border other)
         => Weight == other.Weight
         && Style == other.Style
-        && Scale == other.Scale
-        && IsAsciiOnly == other.IsAsciiOnly;
+        && Mode == other.Mode;
 
     public override bool Equals(object? obj)
         => obj is Border other && Equals(other);
 
     public override int GetHashCode()
-        => (((int)Weight * 397 ^ (int)Style) * 397 ^ (int)Scale) * 397 ^ (IsAsciiOnly ? 1 : 0);
+        => ((int)Weight * 397 ^ (int)Style) * 397 ^ (int)Mode;
 
     public override string ToString()
-        => IsAsciiOnly
-            ? "Border(Ascii)"
-            : $"Border({Scale}, {Weight}, {Style})";
+        => Mode == BorderMode.Narrow
+            ? $"Border({Mode}, {Weight}, {Style})"
+            : $"Border({Mode})";
 }
