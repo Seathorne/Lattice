@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Lattice.Text;
 
 namespace Lattice.Drawing;
@@ -17,6 +18,28 @@ public sealed class DrawSurface(Rectangle extent)
 
     public IReadOnlyList<BaseCommand> Commands => _commands;
 
+    public DrawSurface Text(int x, int y, string text)
+        => Text(x, y, text, ConsoleColor.Gray, null);
+
+    public DrawSurface Text(int x, int y, string text, ConsoleColor foreground, ConsoleColor? background)
+    {
+        if (string.IsNullOrEmpty(text))
+            return this;
+
+        if (!TryClampOrigin(x, y, out int localX, out int localY))
+            return this;
+
+        _commands.Add(new TextCommand
+        {
+            Extent = Absolute(localX, localY, Width - localX, 1),
+            Text = text,
+            Foreground = foreground,
+            Background = background,
+        });
+
+        return this;
+    }
+
     public DrawSurface Text(int x, int y, int width, string text)
         => Text(x, y, width, text, ConsoleColor.Gray, null);
 
@@ -25,7 +48,7 @@ public sealed class DrawSurface(Rectangle extent)
         if (string.IsNullOrEmpty(text))
             return this;
 
-        if (!TryClampArea(x, y, width, 1, out Rectangle local, nameof(Text)))
+        if (!TryClampArea(x, y, width, 1, out Rectangle local))
             return this;
 
         _commands.Add(new TextCommand
@@ -44,7 +67,7 @@ public sealed class DrawSurface(Rectangle extent)
 
     public DrawSurface Fill(int x, int y, int width, int height, Glyph glyph, ConsoleColor foreground, ConsoleColor? background)
     {
-        if (!TryClampArea(x, y, width, height, out Rectangle local, nameof(Fill)))
+        if (!TryClampArea(x, y, width, height, out Rectangle local))
             return this;
 
         _commands.Add(new FillCommand
@@ -69,7 +92,7 @@ public sealed class DrawSurface(Rectangle extent)
 
     public DrawSurface Frame(int x, int y, int width, int height, Border border, ConsoleColor foreground, ConsoleColor? background)
     {
-        if (!TryClampArea(x, y, width, height, out Rectangle local, nameof(Frame)))
+        if (!TryClampArea(x, y, width, height, out Rectangle local))
             return this;
 
         if (local.Width < 2 || local.Height < 2)
@@ -94,7 +117,7 @@ public sealed class DrawSurface(Rectangle extent)
 
     public DrawSurface Clear(int x, int y, int width, int height)
     {
-        if (!TryClampArea(x, y, width, height, out Rectangle local, nameof(Clear)))
+        if (!TryClampArea(x, y, width, height, out Rectangle local))
             return this;
 
         _commands.Add(new ClearCommand { Extent = Absolute(local) });
@@ -107,7 +130,7 @@ public sealed class DrawSurface(Rectangle extent)
         int columns = cells.GetLength(0);
         int rows = cells.GetLength(1);
 
-        if (!TryClampArea(x, y, columns, rows, out Rectangle local, nameof(Draw)))
+        if (!TryClampArea(x, y, columns, rows, out Rectangle local))
             return this;
 
         int offsetX = local.X - Math.Min(x, local.X);
@@ -124,7 +147,7 @@ public sealed class DrawSurface(Rectangle extent)
         return this;
     }
 
-    private bool TryClampOrigin(int x, int y, out int localX, out int localY, string caller)
+    private bool TryClampOrigin(int x, int y, out int localX, out int localY, [CallerMemberName] string caller = "")
     {
         localX = Math.Max(0, x);
         localY = Math.Max(0, y);
@@ -141,7 +164,7 @@ public sealed class DrawSurface(Rectangle extent)
         return true;
     }
 
-    private bool TryClampArea(int x, int y, int width, int height, out Rectangle local, string caller)
+    private bool TryClampArea(int x, int y, int width, int height, out Rectangle local, [CallerMemberName] string caller = "")
     {
         local = default;
 

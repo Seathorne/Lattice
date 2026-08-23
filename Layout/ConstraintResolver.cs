@@ -1,122 +1,127 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using Lattice.Elements;
-using Lattice.Elements.Attributes;
+using Lattice.Measure;
 
 namespace Lattice.Layout;
 
 public static class ConstraintResolver
 {
-    public static SizeConstraint ResolveWidth(Type elementType, MemberInfo? declaration)
+    public static SizeConstraint Resolve(Type elementType, MemberInfo? declaration, Axis axis)
     {
-        WidthAttribute? attribute = NearestWidth(elementType, declaration);
+        DimensionAttribute? attribute = NearestDimension(elementType, declaration, axis);
 
-        switch (attribute)
+        return attribute switch
         {
-            case FixedWidthAttribute fixedWidth:
-                if (fixedWidth.Width < 0)
-                {
-                    Trace.TraceWarning($"{nameof(FixedWidthAttribute)} value {fixedWidth.Width} is negative; using 0.");
-                    return SizeConstraint.Fixed(0);
-                }
-
-                return SizeConstraint.Fixed(fixedWidth.Width);
-
-            case FillWidthAttribute fillWidth:
-                if (fillWidth.Minimum > fillWidth.Maximum)
-                {
-                    Trace.TraceWarning(
-                        $"{nameof(FillWidthAttribute)} minimum {fillWidth.Minimum} exceeds "
-                        + $"maximum {fillWidth.Maximum}; clamping to maximum.");
-
-                    return SizeConstraint.Flexible(fillWidth.Maximum, fillWidth.Maximum);
-                }
-
-                return SizeConstraint.Flexible(fillWidth.Minimum, fillWidth.Maximum);
-
-            default:
-                return SizeConstraint.Fill;
-        }
+            FixedDimensionAttribute fixedDimension => ToFixed(fixedDimension),
+            AdaptiveDimensionAttribute adaptive => ToFlexible(adaptive, SizeMode.Adaptive),
+            FlexibleDimensionAttribute flexible => ToFlexible(flexible, SizeMode.Fill),
+            _ => SizeConstraint.Fill,
+        };
     }
 
-    public static SizeConstraint ResolveHeight(Type elementType, MemberInfo? declaration)
-    {
-        HeightAttribute? attribute = NearestHeight(elementType, declaration);
+    public static BorderAttribute? ResolveBorder(Type elementType, MemberInfo? declaration)
+        => Nearest<BorderAttribute>(elementType, declaration);
 
-        switch (attribute)
-        {
-            case FixedHeightAttribute fixedHeight:
-                if (fixedHeight.Height < 0)
-                {
-                    Trace.TraceWarning($"{nameof(FixedHeightAttribute)} value {fixedHeight.Height} is negative; using 0.");
-                    return SizeConstraint.Fixed(0);
-                }
-
-                return SizeConstraint.Fixed(fixedHeight.Height);
-
-            case FillHeightAttribute fillHeight:
-                if (fillHeight.Minimum > fillHeight.Maximum)
-                {
-                    Trace.TraceWarning(
-                        $"{nameof(FillHeightAttribute)} minimum {fillHeight.Minimum} exceeds "
-                        + $"maximum {fillHeight.Maximum}; clamping to maximum.");
-
-                    return SizeConstraint.Flexible(fillHeight.Maximum, fillHeight.Maximum);
-                }
-
-                return SizeConstraint.Flexible(fillHeight.Minimum, fillHeight.Maximum);
-
-            default:
-                return SizeConstraint.Fill;
-        }
-    }
+    public static bool ResolveIsVisible(Type elementType, MemberInfo? declaration)
+        => Nearest<IsVisibleAttribute>(elementType, declaration)?.IsVisible ?? true;
 
     public static bool ResolveClearBeforeRender(Type elementType, MemberInfo? declaration)
         => Nearest<ClearBeforeRenderAttribute>(elementType, declaration)?.ClearBeforeRender ?? false;
 
-    private static WidthAttribute? NearestWidth(Type elementType, MemberInfo? declaration)
+    private static SizeConstraint ToFixed(FixedDimensionAttribute attribute)
+    {
+        if (attribute.Value >= 0)
+            return SizeConstraint.Fixed(attribute.Value);
+
+        Trace.TraceWarning(
+            $"{attribute.GetType().Name} value {attribute.Value} is negative; using 0.");
+
+        return SizeConstraint.Fixed(0);
+    }
+
+    private static SizeConstraint ToFlexible(FlexibleDimensionAttribute attribute, SizeMode mode)
+    {
+        int minimum = attribute.Minimum;
+        int maximum = attribute.Maximum;
+
+        if (minimum > maximum)
+        {
+            Trace.TraceWarning(
+                $"{attribute.GetType().Name} minimum {minimum} exceeds "
+                + $"maximum {maximum}; clamping to maximum.");
+
+            minimum = maximum;
+        }
+
+        return mode == SizeMode.Adaptive
+            ? SizeConstraint.AdaptiveWithin(minimum, maximum)
+            : SizeConstraint.Flexible(minimum, maximum);
+    }
+
+    private static DimensionAttribute? NearestDimension(
+        Type elementType, MemberInfo? declaration, Axis axis)
     {
         if (declaration is not null)
         {
-            WidthAttribute[] onDeclaration = GetAttributes<WidthAttribute>(declaration, inherit: false);
+            List<DimensionAttribute> onDeclaration =
+                OnAxis(GetAttributes<DimensionAttribute>(declaration, inherit: false), axis);
 
-            if (onDeclaration.Length > 0)
-                return PreferFixed(onDeclaration, declaration);
+            if (onDeclaration.Count > 0)
+                return PreferFixed(onDeclaration, declaration, axis);
         }
 
-        WidthAttribute[] own = GetAttributes<WidthAttribute>(elementType, inherit: false);
+        List<DimensionAttribute> own =
+            OnAxis(GetAttributes<DimensionAttribute>(elementType, inherit: false), axis);
 
-        if (own.Length > 0)
-            return PreferFixed(own, elementType);
+        if (own.Count > 0)
+            return PreferFixed(own, elementType, axis);
 
-        WidthAttribute[] inherited = GetAttributes<WidthAttribute>(elementType, inherit: true);
+        List<DimensionAttribute> inherited =
+            OnAxis(GetAttributes<DimensionAttribute>(elementType, inherit: true), axis);
 
-        return inherited.Length > 0
-            ? PreferFixed(inherited, elementType)
+        return inherited.Count > 0
+            ? PreferFixed(inherited, elementType, axis)
             : null;
     }
 
-    private static HeightAttribute? NearestHeight(Type elementType, MemberInfo? declaration)
+    private static List<DimensionAttribute> OnAxis(DimensionAttribute[] found, Axis axis)
     {
-        if (declaration is not null)
-        {
-            HeightAttribute[] onDeclaration = GetAttributes<HeightAttribute>(declaration, inherit: false);
+        List<DimensionAttribute> matches = [];
 
-            if (onDeclaration.Length > 0)
-                return PreferFixed(onDeclaration, declaration);
+        foreach (DimensionAttribute attribute in found)
+        {
+            if (attribute.Axis == axis)
+                matches.Add(attribute);
         }
 
-        HeightAttribute[] own = GetAttributes<HeightAttribute>(elementType, inherit: false);
+        return matches;
+    }
 
-        if (own.Length > 0)
-            return PreferFixed(own, elementType);
+    private static DimensionAttribute PreferFixed(
+        List<DimensionAttribute> found, MemberInfo site, Axis axis)
+    {
+        if (found.Count == 1)
+            return found[0];
 
-        HeightAttribute[] inherited = GetAttributes<HeightAttribute>(elementType, inherit: true);
+        foreach (DimensionAttribute candidate in found)
+        {
+            if (candidate is FixedDimensionAttribute)
+            {
+                Trace.TraceWarning(
+                    $"{site.Name} declares {found.Count} {axis} constraints "
+                    + $"including {candidate.GetType().Name}; using the fixed one.");
 
-        return inherited.Length > 0
-            ? PreferFixed(inherited, elementType)
-            : null;
+                return candidate;
+            }
+        }
+
+        Trace.TraceWarning(
+            $"{site.Name} declares {found.Count} {axis} constraints; using the first.");
+
+        return found[0];
     }
 
     private static TAttribute? Nearest<TAttribute>(Type elementType, MemberInfo? declaration)
@@ -138,30 +143,6 @@ public static class ConstraintResolver
         TAttribute[] inherited = GetAttributes<TAttribute>(elementType, inherit: true);
 
         return inherited.Length > 0 ? inherited[0] : null;
-    }
-
-    private static TAttribute PreferFixed<TAttribute>(TAttribute[] found, MemberInfo site)
-        where TAttribute : Attribute
-    {
-        if (found.Length == 1)
-            return found[0];
-
-        foreach (TAttribute candidate in found)
-        {
-            if (candidate is FixedWidthAttribute or FixedHeightAttribute)
-            {
-                Trace.TraceWarning(
-                    $"{site.Name} declares both {candidate.GetType().Name} and a fill "
-                    + "constraint on the same axis; using the fixed one.");
-
-                return candidate;
-            }
-        }
-
-        Trace.TraceWarning(
-            $"{site.Name} declares {found.Length} {typeof(TAttribute).Name} constraints; using the first.");
-
-        return found[0];
     }
 
     private static TAttribute[] GetAttributes<TAttribute>(MemberInfo member, bool inherit)

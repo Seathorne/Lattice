@@ -28,7 +28,7 @@ public static class ProbeRanges
     // Opt in when the application is localized to Korean.
     public static CodepointRange HangulSyllables { get; }
         = new CodepointRange(0xAC00, 0xD7A3);
-    
+
     // Supplementary plane; Windows Terminal only.
     public static CodepointRange MahjongTiles { get; }
         = new CodepointRange(0x1F000, 0x1F02B);

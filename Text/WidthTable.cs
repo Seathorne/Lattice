@@ -20,6 +20,8 @@ public sealed class WidthTable
     //   U+3007 IDEOGRAPHIC NUMBER ZERO (East Asian Wide)
     private static readonly int[] Canaries = [0x00B6, 0x2560, 0x3007];
 
+    private static WidthTable? _current;
+
     private readonly Dictionary<int, int> _codepointWidths = [];
 
     private readonly Dictionary<string, int> _glyphWidths = [];
@@ -33,15 +35,31 @@ public sealed class WidthTable
     //  a full re-render.
     public event Action? Invalidated;
 
-    // isEnabled false makes every measurement return 1, which
-    //  is correct for an ASCII-only host.
-    public void Initialize(bool isEnabled)
+    public static WidthTable Current
     {
-        _isEnabled = isEnabled;
+        get
+        {
+            if (_current is null)
+            {
+                Trace.TraceWarning(
+                    $"{nameof(WidthTable)}.{nameof(Current)} was read before "
+                    + $"{nameof(SetCurrent)}; measurements assume single width.");
+
+                _current = new WidthTable();
+            }
+
+            return _current;
+        }
     }
 
+    public static void SetCurrent(WidthTable table)
+        => _current = table ?? throw new ArgumentNullException(nameof(table));
+
+    public void Initialize(bool isEnabled)
+        => _isEnabled = isEnabled;
+
     // Runs once at startup, before the first render.
-    public void ProbeRanges(IEnumerable<CodepointRange> ranges)
+   public void ProbeRanges(IEnumerable<CodepointRange> ranges)
     {
         if (!_isEnabled)
             return;
@@ -126,7 +144,7 @@ public sealed class WidthTable
     {
         if (string.IsNullOrEmpty(text))
             return string.Empty;
-        
+
         List<Glyph> glyphs = Glyph.Split(text);
         StringBuilder builder = new(text.Length);
         bool substituted = false;
@@ -140,13 +158,13 @@ public sealed class WidthTable
 
             if (resolved != glyph)
                 substituted = true;
-            
+
             builder.Append(resolved.Value);
         }
 
         if (substituted)
             Trace.TraceWarning($"Unclassified glyphs in '{text}' were replaced.");
-        
+
         return builder.ToString();
     }
 
@@ -173,9 +191,9 @@ public sealed class WidthTable
 
             int width = Measure(glyph);
 
-            if (width == WidthTable.Unclassified)
+            if (width == Unclassified)
                 width = 1;
-            
+
             if (used + width > maxWidth)
             {
                 wasTruncated = true;

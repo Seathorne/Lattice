@@ -1,6 +1,6 @@
 using Lattice.Text;
 
-namespace Lattice.Rendering;
+namespace Lattice.Drawing;
 
 public readonly struct BorderGlyphSet(Glyph topLeft, Glyph topRight, Glyph bottomLeft, Glyph bottomRight, Glyph horizontal, Glyph vertical)
 {

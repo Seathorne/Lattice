@@ -1,8 +1,6 @@
 using System.Diagnostics;
-using Lattice.Console;
-using Lattice.Drawing;
 
-namespace Lattice.Rendering;
+namespace Lattice.Drawing;
 
 public static class BorderGlyphs
 {
@@ -28,9 +26,9 @@ public static class BorderGlyphs
 
     public static readonly BorderGlyphSet Simple = new('+', '+', '+', '+', '-', '|');
 
-    public static BorderGlyphSet GetBorderGlyphs(Border border, HostType hostType)
+    public static BorderGlyphSet GetBorderGlyphs(Border border)
     {
-        if (border.Mode == BorderMode.Simple || hostType == HostType.Conhost)
+        if (border.Mode == BorderMode.Simple)
             return Simple;
         
         if (border.Mode == BorderMode.Wide)

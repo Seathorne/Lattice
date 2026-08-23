@@ -8,6 +8,9 @@ dotnet_diagnostic.IDE0130.severity = none
 [Elements/Attributes/*.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
+[Elements/Attributes/Dimensions/*.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
 [Elements/Events/*.cs]
 dotnet_diagnostic.IDE0130.severity = none
 

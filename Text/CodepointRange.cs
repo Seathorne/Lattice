@@ -11,7 +11,7 @@ public readonly struct CodepointRange(int start, int end)
 
     public bool Contains(int codepoint)
         => codepoint >= Start && codepoint <= End;
-    
+
     public override string ToString()
         => $"U+{Start:X4}-U+{End:X4}";
 }

@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Lattice.Console;
+using Lattice.Drawing;
+using Lattice.Layout;
+using Lattice.Rendering;
+using Lattice.Screens;
 using Lattice.Text;
 
 namespace Lattice;
@@ -13,29 +17,44 @@ public class Terminal
 
     public const int MinimumHeight = 22;
 
-    public WidthTable WidthTable { get; } = new();
-
     public ConsoleWriter Writer { get; } = new();
 
     public HostType HostType { get; private set; }
 
+    public WidthTable WidthTable { get; } = new();
+
     public bool IsUnicodeEnabled => HostType == HostType.WindowsTerminal;
 
-    public void Run()
+    public void Run(Screen screen)
     {
         Configure();
         EnforceSizeOrBlock();
 
         DetectHost();
         WidthTable.Initialize(IsUnicodeEnabled);
+        WidthTable.SetCurrent(WidthTable);
         WidthTable.ProbeRanges(ProbeRanges.Default);
 
-        // Screens, tick loop, and input follow here.
+        Renderer renderer = new(Writer, WidthTable, HostType);
+        LayoutEngine layout = new();
+
+        screen.OnEnter();
+
+        Rectangle bounds = new(
+            0,
+            0,
+            System.Console.WindowWidth,
+            System.Console.WindowHeight - 1);   // -1 to remove scratch row from width probe
+
+        renderer.Clear();
+        renderer.Render(layout.Layout(screen, bounds, null));
+
+        System.Console.ReadKey(intercept: true);
+
+        screen.OnExit();
+        System.Console.CursorVisible = true;
     }
 
-    // Runs the startup sequence and prints the probe results instead of a
-    //  screen. Sandbox calls this to verify the width table before any element
-    //  exists to draw referencing it.
     public void RunDiagnostics(IEnumerable<CodepointRange>? extraRanges = null)
     {
         Configure();
@@ -43,12 +62,13 @@ public class Terminal
 
         DetectHost();
         WidthTable.Initialize(IsUnicodeEnabled);
+        WidthTable.SetCurrent(WidthTable);
 
         List<CodepointRange> ranges = [.. ProbeRanges.Default];
 
         if (extraRanges is not null)
             ranges.AddRange(extraRanges);
-        
+
         System.Console.Clear();
         System.Console.WriteLine($"Host:    {HostType}");
         System.Console.WriteLine($"Unicode: {IsUnicodeEnabled}");
@@ -59,7 +79,7 @@ public class Terminal
         WidthTable.ProbeRanges(ranges);
 
         System.Console.Write("Done. Press any key to page through results.");
-        
+
         System.Console.ReadKey(intercept: true);
 
         DumpWidths(ranges);
@@ -79,7 +99,7 @@ public class Terminal
         Dictionary<int, int> widths = WidthTable
             .ProbedCodepoints()
             .ToDictionary(pair => pair.Key, pair => pair.Value);
-        
+
         foreach (CodepointRange range in ranges)
         {
             System.Console.Clear();
@@ -94,7 +114,7 @@ public class Terminal
                 {
                     if (line.Length > 0)
                         System.Console.WriteLine(line.ToString());
-                    
+
                     line.Clear();
                     line.Append($"{codepoint:X4}  ");
                 }
@@ -130,7 +150,7 @@ public class Terminal
                 string value = codepoint <= 0xFFFF
                     ? ((char)codepoint).ToString()
                     : char.ConvertFromUtf32(codepoint);
-                
+
                 sample.Append(WidthTable.Resolve(value));
             }
 

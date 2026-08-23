@@ -1,3 +1,4 @@
+using Lattice.Measure;
 using System;
 
 namespace Lattice.Elements;
@@ -6,7 +7,6 @@ namespace Lattice.Elements;
     AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
     AllowMultiple = false,
     Inherited = true)]
-public sealed class ClearBeforeRenderAttribute(bool clearBeforeRender = true) : Attribute
+public sealed class FixedWidthAttribute(int value) : FixedDimensionAttribute(Axis.Width, value)
 {
-    public bool ClearBeforeRender { get; } = clearBeforeRender;
 }

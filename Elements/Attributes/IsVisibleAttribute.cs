@@ -6,7 +6,7 @@ namespace Lattice.Elements;
     AttributeTargets.Class | AttributeTargets.Field | AttributeTargets.Property,
     AllowMultiple = false,
     Inherited = true)]
-public sealed class ClearBeforeRenderAttribute(bool clearBeforeRender = true) : Attribute
+public sealed class IsVisibleAttribute(bool isVisible = true) : Attribute
 {
-    public bool ClearBeforeRender { get; } = clearBeforeRender;
+    public bool IsVisible { get; } = isVisible;
 }
