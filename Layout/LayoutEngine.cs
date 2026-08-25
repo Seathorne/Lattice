@@ -14,16 +14,71 @@ public sealed class LayoutEngine
     private const BindingFlags DeclarationFlags =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    private readonly Dictionary<Element, DrawSurface> _drawSurfaces = [];
+
     private readonly Dictionary<Element, MemberInfo> _declarations = [];
+
+    private readonly Dictionary<Element, Action<ElementChangedEventArgs>> _subscriptions = [];
+
+    private readonly HashSet<Element> _seen = [];
 
     public IReadOnlyList<DrawSurface> Layout(Screen screen, Rectangle bounds)
     {
         MapDeclarations(screen);
 
-        List<DrawSurface> surfaces = [];
-        Place(screen.Root, bounds, surfaces);
+        if (screen.IsDirty)
+        {
+            foreach (DrawSurface surface in _drawSurfaces.Values)
+                surface.Invalidate();
 
-        return surfaces;
+            screen.ClearDirty();
+        }
+
+        _seen.Clear();
+
+        List<DrawSurface> dirty = [];
+        Place(screen.Root, bounds, dirty);
+
+        Prune();
+
+        return dirty;
+    }
+
+    private void Subscribe(Element element)
+    {
+        if (_subscriptions.ContainsKey(element))
+            return;
+
+        void Handler(ElementChangedEventArgs args)
+        {
+            if (_drawSurfaces.TryGetValue(element, out DrawSurface? surface))
+                surface.Invalidate();
+        }
+
+        _subscriptions[element] = Handler;
+        element.Changed += Handler;
+    }
+
+    private void Prune()
+    {
+        List<Element> stale = [];
+
+        foreach (Element element in _drawSurfaces.Keys)
+        {
+            if (!_seen.Contains(element))
+                stale.Add(element);
+        }
+
+        foreach (Element element in stale)
+        {
+            if (_subscriptions.TryGetValue(element, out Action<ElementChangedEventArgs>? handler))
+            {
+                element.Changed -= handler;
+                _subscriptions.Remove(element);
+            }
+
+            _drawSurfaces.Remove(element);
+        }
     }
 
     private void MapDeclarations(Screen screen)
@@ -59,10 +114,16 @@ public sealed class LayoutEngine
         if (!(element.IsVisible ?? ConstraintResolver.ResolveIsVisible(type, declaration)))
             return;
 
-        DrawSurface surface = new(allocated);
+        // Compare allocated rectangle to existing extent and reuse if not resized.
+        bool exists = _drawSurfaces.TryGetValue(element, out DrawSurface? cached);
+        bool reusable = exists && cached!.Extent.Equals(allocated);
 
-        if (ConstraintResolver.ResolveClearBeforeRender(type, declaration))
-            surface.Clear();
+        DrawSurface surface = reusable ? cached! : new DrawSurface(allocated);
+        _seen.Add(element);
+        Subscribe(element);
+
+        if (!reusable)
+            _drawSurfaces[element] = surface;
 
         Rectangle content = allocated;
         BorderAttribute? border = ConstraintResolver.ResolveBorder(type, declaration);
@@ -72,8 +133,6 @@ public sealed class LayoutEngine
             BorderGlyphSet glyphs = BorderGlyphs.GetBorderGlyphs(border.Border);
             int thickness = Math.Max(1, WidthTable.Current.Measure(glyphs.Vertical));
 
-            surface.Frame(border.Border);
-
             content = new Rectangle(
                 allocated.Left + thickness,
                 allocated.Top + 1,
@@ -81,8 +140,19 @@ public sealed class LayoutEngine
                 Math.Max(0, allocated.Height - 2));
         }
 
-        element.Render(surface);
-        surfaces.Add(surface);
+        if (surface.IsDirty)
+        {
+            surface.Reset();
+
+            if (ConstraintResolver.ResolveClearBeforeRender(type, declaration))
+                surface.Clear();
+
+            if (border is not null)
+                surface.Frame(border.Border);
+
+            element.Render(surface);
+            surfaces.Add(surface);
+        }
 
         if (element.Children.Count == 0 || content.Width <= 0 || content.Height <= 0)
             return;

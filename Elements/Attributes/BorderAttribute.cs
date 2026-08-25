@@ -23,5 +23,5 @@ public sealed class BorderAttribute : Attribute
             _ => Border.LightSolid,
         };
 
-    public Border Border { get; set; }
+    public Border Border { get; }
 }

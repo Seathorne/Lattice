@@ -6,9 +6,13 @@ using Lattice.Text;
 
 namespace Lattice.Drawing;
 
-public sealed class DrawSurface(Rectangle extent)
+public sealed class DrawSurface(Rectangle extent) : IDirtyable
 {
     private readonly List<BaseCommand> _commands = [];
+
+    public bool IsDirtyable { get; set; } = true;
+
+    public bool IsDirty { get; private set; } = true;  // Initialize as true to render on first pass
 
     public Rectangle Extent { get; } = extent;
 
@@ -17,6 +21,9 @@ public sealed class DrawSurface(Rectangle extent)
     public int Height => Extent.Height;
 
     public IReadOnlyList<BaseCommand> Commands => _commands;
+
+    public void Reset()
+        => _commands.Clear();
 
     public DrawSurface Text(int x, int y, string text)
         => Text(x, y, text, ConsoleColor.Gray, null);
@@ -146,6 +153,17 @@ public sealed class DrawSurface(Rectangle extent)
 
         return this;
     }
+
+    public void Invalidate()
+    {
+        if (!IsDirtyable)
+            return;
+
+        IsDirty = true;
+    }
+
+    public void ClearDirty()
+        => IsDirty = false;
 
     private bool TryClampOrigin(int x, int y, out int localX, out int localY, [CallerMemberName] string caller = "")
     {

@@ -5,6 +5,9 @@ dotnet_diagnostic.IDE0130.severity = none
 [Drawing/Commands/*.cs]
 dotnet_diagnostic.IDE0130.severity = none
 
+[Drawing/Interfaces/*.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
 [Elements/Attributes/*.cs]
 dotnet_diagnostic.IDE0130.severity = none
 

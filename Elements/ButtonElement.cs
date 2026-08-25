@@ -51,10 +51,16 @@ public sealed class ButtonElement : Element, IEnableable, IFocusable, IAcceptsIn
     }
 
     public void OnFocusGained()
-        => IsFocused = true;
+    {
+        IsFocused = true;
+        RaiseChanged(ValueChangedEventArgs.Instance);
+    }
 
     public void OnFocusLost()
-        => IsFocused = false;
+    {
+        IsFocused = false;
+        RaiseChanged(ValueChangedEventArgs.Instance);
+    }
 
     public bool HandleInput(ConsoleKeyInfo key, KeyEvent keyEvent)
     {

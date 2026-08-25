@@ -8,7 +8,6 @@ using Lattice.Measure;
 namespace Lattice.Elements;
 
 [IsVisible(true)]
-[ClearBeforeRender] // TODO: Remove and each element clears what it needs?
 public abstract class Element
 {
     private readonly List<Element> _children = [];
@@ -73,7 +72,7 @@ public abstract class Element
 
     public override string ToString() => $"{GetType().Name}({Id})";
 
-    protected void RaiseChanged(ElementChangedEventArgs e) => Changed?.Invoke(this, e);
+    protected void RaiseChanged(ElementChangedEventArgs e) => Changed?.Invoke(e);
 
-    public event EventHandler<ElementChangedEventArgs>? Changed;
+    public event Action<ElementChangedEventArgs>? Changed;
 }

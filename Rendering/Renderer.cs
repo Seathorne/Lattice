@@ -29,6 +29,8 @@ public sealed class Renderer(ConsoleWriter writer, WidthTable widths, HostType h
     {
         foreach (BaseCommand command in surface.Commands)
             Execute(command);
+
+        surface.ClearDirty();
     }
 
     private void Execute(BaseCommand command)
