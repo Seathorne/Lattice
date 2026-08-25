@@ -8,6 +8,7 @@ using Lattice.Measure;
 namespace Lattice.Elements;
 
 [IsVisible(true)]
+[ClearBeforeRender] // TODO: Remove and each element clears what it needs?
 public abstract class Element
 {
     private readonly List<Element> _children = [];
@@ -65,7 +66,7 @@ public abstract class Element
         RaiseChanged(new ChildRemovedEventArgs(child));
     }
 
-    public abstract void Render(bool isFocused, DrawSurface drawSurface);
+    public abstract void Render(DrawSurface drawSurface);
 
     public virtual Rectangle MeasureAdaptive()
         => new(0, 0, 0, 0);

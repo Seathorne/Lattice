@@ -16,12 +16,12 @@ public sealed class LayoutEngine
 
     private readonly Dictionary<Element, MemberInfo> _declarations = [];
 
-    public IReadOnlyList<DrawSurface> Layout(Screen screen, Rectangle bounds, Element? focused)
+    public IReadOnlyList<DrawSurface> Layout(Screen screen, Rectangle bounds)
     {
         MapDeclarations(screen);
 
         List<DrawSurface> surfaces = [];
-        Place(screen.Root, bounds, focused, surfaces);
+        Place(screen.Root, bounds, surfaces);
 
         return surfaces;
     }
@@ -51,7 +51,7 @@ public sealed class LayoutEngine
     private MemberInfo? DeclarationOf(Element element)
         => _declarations.TryGetValue(element, out MemberInfo? found) ? found : null;
 
-    private void Place(Element element, Rectangle allocated, Element? focused, List<DrawSurface> surfaces)
+    private void Place(Element element, Rectangle allocated, List<DrawSurface> surfaces)
     {
         Type type = element.GetType();
         MemberInfo? declaration = DeclarationOf(element);
@@ -81,14 +81,14 @@ public sealed class LayoutEngine
                 Math.Max(0, allocated.Height - 2));
         }
 
-        element.Render(ReferenceEquals(element, focused), surface);
+        element.Render(surface);
         surfaces.Add(surface);
 
         if (element.Children.Count == 0 || content.Width <= 0 || content.Height <= 0)
             return;
 
         foreach ((Element child, Rectangle cell) in Arrange(element, content))
-            Place(child, cell, focused, surfaces);
+            Place(child, cell, surfaces);
     }
 
     private IEnumerable<(Element Child, Rectangle Cell)> Arrange(Element parent, Rectangle content)

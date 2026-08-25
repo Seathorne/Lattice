@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Lattice.Console;
 using Lattice.Drawing;
+using Lattice.Focus;
+using Lattice.Input;
 using Lattice.Layout;
 using Lattice.Rendering;
 using Lattice.Screens;
@@ -35,24 +38,42 @@ public class Terminal
         WidthTable.SetCurrent(WidthTable);
         WidthTable.ProbeRanges(ProbeRanges.Default);
 
+        FocusManager focus = new();
+        FocusManager.SetCurrent(focus);
+
         Renderer renderer = new(Writer, WidthTable, HostType);
         LayoutEngine layout = new();
+        InputHandler input = new();
 
         screen.OnEnter();
+        focus.Load(screen.Root);
 
-        Rectangle bounds = new(
-            0,
-            0,
-            System.Console.WindowWidth,
-            System.Console.WindowHeight - 1);   // -1 to remove scratch row from width probe
+        input.Start();
 
-        renderer.Clear();
-        renderer.Render(layout.Layout(screen, bounds, null));
+        try
+        {
+            renderer.Clear();
+            Render(renderer, layout, screen);
 
-        System.Console.ReadKey(intercept: true);
+            while (!input.ExitRequested)
+            {
+                if (!input.TryTake(out InputEvent inputEvent, Timeout.Infinite))
+                    break;
 
-        screen.OnExit();
-        System.Console.CursorVisible = true;
+                input.Route(inputEvent, screen);
+
+                if (input.ExitRequested)
+                    break;
+
+                Render(renderer, layout, screen);
+            }
+        }
+        finally
+        {
+            input.Stop();
+            screen.OnExit();
+            System.Console.CursorVisible = true;
+        }
     }
 
     public void RunDiagnostics(IEnumerable<CodepointRange>? extraRanges = null)
@@ -85,6 +106,54 @@ public class Terminal
         DumpWidths(ranges);
 
         System.Console.CursorVisible = true;
+    }
+
+    private static void Configure()
+    {
+        // Must precede any write. Without it, Unicode either throws or renders
+        //  as '?' depending on the active code page.
+        System.Console.OutputEncoding = Encoding.UTF8;
+
+        System.Console.CursorVisible = false;
+        System.Console.TreatControlCAsInput = true;
+
+        try
+        {
+            System.Console.BufferHeight = System.Console.WindowHeight;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // Buffer cannot shrink below the cursor row; the scrollbar stays
+            // until the next resize.
+        }
+    }
+
+    private static void EnforceSizeOrBlock()
+    {
+        while (System.Console.WindowWidth < MinimumWidth || System.Console.WindowHeight < MinimumHeight)
+        {
+            System.Console.Clear();
+
+            string message = $"Resize terminal to at least {MinimumWidth}x{MinimumHeight}";
+            int x = Math.Max(0, (System.Console.WindowWidth - message.Length) / 2);
+            int y = System.Console.WindowHeight / 2;
+
+            System.Console.SetCursorPosition(x, y);
+            System.Console.Write(message);
+
+            System.Threading.Thread.Sleep(200);
+        }
+    }
+
+    private static void Render(Renderer renderer, LayoutEngine layout, Screen screen)
+    {
+        Rectangle bounds = new(
+            0,
+            0,
+            System.Console.WindowWidth,
+            System.Console.WindowHeight - 1);  // -1 to remove scratch row from width probe
+
+        renderer.Render(layout.Layout(screen, bounds));
     }
 
     private void DetectHost()
@@ -160,42 +229,5 @@ public class Terminal
         System.Console.WriteLine();
         System.Console.Write("Any key to exit...");
         System.Console.ReadKey(intercept: true);
-    }
-
-    private static void Configure()
-    {
-        // Must precede any write. Without it, Unicode either throws or renders
-        //  as '?' depending on the active code page.
-        System.Console.OutputEncoding = Encoding.UTF8;
-
-        System.Console.CursorVisible = false;
-        System.Console.TreatControlCAsInput = true;
-
-        try
-        {
-            System.Console.BufferHeight = System.Console.WindowHeight;
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            // Buffer cannot shrink below the cursor row; the scrollbar stays
-            // until the next resize.
-        }
-    }
-
-    private static void EnforceSizeOrBlock()
-    {
-        while (System.Console.WindowWidth < MinimumWidth || System.Console.WindowHeight < MinimumHeight)
-        {
-            System.Console.Clear();
-
-            string message = $"Resize terminal to at least {MinimumWidth}x{MinimumHeight}";
-            int x = Math.Max(0, (System.Console.WindowWidth - message.Length) / 2);
-            int y = System.Console.WindowHeight / 2;
-
-            System.Console.SetCursorPosition(x, y);
-            System.Console.Write(message);
-
-            System.Threading.Thread.Sleep(200);
-        }
     }
 }

@@ -32,6 +32,6 @@ public sealed class TextElement : Element
     public override Rectangle MeasureAdaptive()
         => new(0, 0, WidthTable.Current.Measure(_text), 1);
 
-    public override void Render(bool isFocused, DrawSurface surface)
+    public override void Render(DrawSurface surface)
         => surface.Text(0, 0, _text, Foreground, Background);
 }
