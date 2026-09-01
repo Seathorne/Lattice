@@ -114,23 +114,13 @@ public sealed class LayoutEngine
         if (!(element.IsVisible ?? ConstraintResolver.ResolveIsVisible(type, declaration)))
             return;
 
-        // Compare allocated rectangle to existing extent and reuse if not resized.
-        bool exists = _drawSurfaces.TryGetValue(element, out DrawSurface? cached);
-        bool reusable = exists && cached!.Extent.Equals(allocated);
-
-        DrawSurface surface = reusable ? cached! : new DrawSurface(allocated);
-        _seen.Add(element);
-        Subscribe(element);
-
-        if (!reusable)
-            _drawSurfaces[element] = surface;
-
+        Border? border = element.Border
+            ?? ConstraintResolver.ResolveBorder(type, declaration)?.Border;
         Rectangle content = allocated;
-        BorderAttribute? border = ConstraintResolver.ResolveBorder(type, declaration);
 
         if (border is not null)
         {
-            BorderGlyphSet glyphs = BorderGlyphs.GetBorderGlyphs(border.Border);
+            BorderGlyphSet glyphs = BorderGlyphs.GetBorderGlyphs(border.Value);
             int thickness = Math.Max(1, WidthTable.Current.Measure(glyphs.Vertical));
 
             content = new Rectangle(
@@ -140,6 +130,18 @@ public sealed class LayoutEngine
                 Math.Max(0, allocated.Height - 2));
         }
 
+        // Compare allocated rectangle to existing extent and reuse if not resized.
+        bool exists = _drawSurfaces.TryGetValue(element, out DrawSurface? cached);
+        bool reusable = exists && cached!.Extent.Equals(allocated) && cached.Content.Equals(content);
+
+        DrawSurface surface = reusable ? cached! : new DrawSurface(allocated, content);
+
+        if (!reusable)
+            _drawSurfaces[element] = surface;
+
+        _seen.Add(element);
+        Subscribe(element);
+
         if (surface.IsDirty)
         {
             surface.Reset();
@@ -148,7 +150,7 @@ public sealed class LayoutEngine
                 surface.Clear();
 
             if (border is not null)
-                surface.Frame(border.Border);
+                surface.Frame(border.Value);
 
             element.Render(surface);
             surfaces.Add(surface);

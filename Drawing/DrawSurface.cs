@@ -6,24 +6,64 @@ using Lattice.Text;
 
 namespace Lattice.Drawing;
 
-public sealed class DrawSurface(Rectangle extent) : IDirtyable
+public sealed class DrawSurface(Rectangle extent, Rectangle content) : IDirtyable
 {
     private readonly List<BaseCommand> _commands = [];
+
+    public DrawSurface(Rectangle extent)
+        : this(extent, extent)
+    {
+    }
+
+    public Rectangle Extent { get; } = extent;
+
+    public Rectangle Content { get; } = content;
+
+    public int Width => Content.Width;
+
+    public int Height => Content.Height;
 
     public bool IsDirtyable { get; set; } = true;
 
     public bool IsDirty { get; private set; } = true;  // Initialize as true to render on first pass
 
-    public Rectangle Extent { get; } = extent;
-
-    public int Width => Extent.Width;
-
-    public int Height => Extent.Height;
-
     public IReadOnlyList<BaseCommand> Commands => _commands;
+
+    public void Invalidate()
+    {
+        if (!IsDirtyable)
+            return;
+
+        IsDirty = true;
+    }
+
+    public void ClearDirty()
+        => IsDirty = false;
 
     public void Reset()
         => _commands.Clear();
+
+    public DrawSurface Frame(Border border)
+        => Frame(border, ConsoleColor.Gray, null);
+
+    public DrawSurface Frame(Border border, ConsoleColor foreground, ConsoleColor? background)
+    {
+        if (Extent.Width < 2 || Extent.Height < 2)
+        {
+            Trace.TraceWarning($"Frame extent {Extent} is too small to draw; dropped.");
+            return this;
+        }
+
+        _commands.Add(new BorderCommand
+        {
+            Extent = Extent,
+            Border = border,
+            Foreground = foreground,
+            Background = background,
+        });
+
+        return this;
+    }
 
     public DrawSurface Text(int x, int y, string text)
         => Text(x, y, text, ConsoleColor.Gray, null);
@@ -88,37 +128,6 @@ public sealed class DrawSurface(Rectangle extent) : IDirtyable
         return this;
     }
 
-    public DrawSurface Frame(Border border)
-        => Frame(0, 0, Width, Height, border, ConsoleColor.Gray, null);
-
-    public DrawSurface Frame(Border border, ConsoleColor foreground, ConsoleColor? background)
-        => Frame(0, 0, Width, Height, border, foreground, background);
-
-    public DrawSurface Frame(int x, int y, int width, int height, Border border)
-        => Frame(x, y, width, height, border, ConsoleColor.Gray, null);
-
-    public DrawSurface Frame(int x, int y, int width, int height, Border border, ConsoleColor foreground, ConsoleColor? background)
-    {
-        if (!TryClampArea(x, y, width, height, out Rectangle local))
-            return this;
-
-        if (local.Width < 2 || local.Height < 2)
-        {
-            Trace.TraceWarning($"Frame area {local} is too small to draw; dropped.");
-            return this;
-        }
-
-        _commands.Add(new BorderCommand
-        {
-            Extent = Absolute(local),
-            Border = border,
-            Foreground = foreground,
-            Background = background,
-        });
-
-        return this;
-    }
-
     public DrawSurface Clear()
         => Clear(0, 0, Width, Height);
 
@@ -154,17 +163,6 @@ public sealed class DrawSurface(Rectangle extent) : IDirtyable
         return this;
     }
 
-    public void Invalidate()
-    {
-        if (!IsDirtyable)
-            return;
-
-        IsDirty = true;
-    }
-
-    public void ClearDirty()
-        => IsDirty = false;
-
     private bool TryClampOrigin(int x, int y, out int localX, out int localY, [CallerMemberName] string caller = "")
     {
         localX = Math.Max(0, x);
@@ -175,7 +173,7 @@ public sealed class DrawSurface(Rectangle extent) : IDirtyable
 
         if (localX >= Width || localY >= Height)
         {
-            Trace.TraceWarning($"{caller} origin ({x}, {y}) is past the surface bounds {Extent}; dropped.");
+            Trace.TraceWarning($"{caller} origin ({x}, {y}) is past the surface content {Content}; dropped.");
             return false;
         }
 
@@ -201,7 +199,7 @@ public sealed class DrawSurface(Rectangle extent) : IDirtyable
         if (clampedWidth != width || clampedHeight != height)
         {
             Trace.TraceWarning(
-                $"{caller} area {width}x{height} at ({x}, {y}) exceeds the surface {Extent}; "
+                $"{caller} area {width}x{height} at ({x}, {y}) exceeds the surface content {Content}; "
                 + $"clamped to {clampedWidth}x{clampedHeight}.");
         }
 
@@ -214,7 +212,7 @@ public sealed class DrawSurface(Rectangle extent) : IDirtyable
         => Absolute(local.X, local.Y, local.Width, local.Height);
 
     private Rectangle Absolute(int localX, int localY, int width, int height)
-        => new(Extent.Left + localX, Extent.Top + localY, width, height);
+        => new(Content.Left + localX, Content.Top + localY, width, height);
 
     private static DrawCommand.Cell[,] Slice(DrawCommand.Cell[,] cells, int offsetX, int offsetY, int width, int height)
     {

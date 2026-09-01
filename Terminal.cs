@@ -63,7 +63,10 @@ public class Terminal
                 input.Route(inputEvent, screen);
 
                 if (input.ExitRequested)
+                {
+                    renderer.Clear();
                     break;
+                }
 
                 Render(renderer, layout, screen);
             }
